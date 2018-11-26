@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { sum } = require('./utils');
 
 const stopWordsString = fs.readFileSync('./stopwords.txt', 'utf8');
 const stopWords = stopWordsString.split('\n');
@@ -73,14 +74,18 @@ const searchTermSet = buildAllSearchTerms(trainData);
 let total = 0;
 let found = 0;
 let foundedQueries = {};
+const queryLengths = [];
+const suggestionLengths = [];
 for (let i = 0; i <  testData.length; i++) {
     for (let j = 0; j < testData[i].length; j++) {
         let query = testData[i].substring(0, j+1);
         let sortedQuery = query.trim().split(' ').sort().join(' ');
+        queryLengths.push(query.length);
         total += 1;
         if (searchTermSet.has(sortedQuery)) {
             found += 1;
             foundedQueries[testData[i]] = query;
+            suggestionLengths.push(query.length);
             continue;
         }
 
@@ -94,6 +99,7 @@ for (let i = 0; i <  testData.length; i++) {
             if (searchTermSet.has(sortedQuery)) {
                 found += 1;
                 foundedQueries[testData[i]] = query;
+                suggestionLengths.push(query.length);
                 break;
             }
         }
@@ -101,6 +107,7 @@ for (let i = 0; i <  testData.length; i++) {
         if (!(testData[i] in foundedQueries)) {
             foundedQueries[testData[i]] = 'N/A';
         }
+        suggestionLengths.push(0);
     }
 }
 
@@ -108,6 +115,8 @@ console.log('search term set size', searchTermSet.size);
 console.log('total queries', total);
 console.log('number of queries with suggestions', found);
 console.log('percent of queries with suggestions', found / total);
+console.log('ratio of longest substring with suggestion to query string', 
+    sum(suggestionLengths) / sum(queryLengths));
 
 const out = fs.createWriteStream('queriesWithSuggestionsV2WithPartialSuggestions.txt');
 for (let key in foundedQueries) {

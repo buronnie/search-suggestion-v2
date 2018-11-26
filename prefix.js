@@ -49,14 +49,16 @@ const searchTermSet = buildAllSearchTerms(trainData);
 
 let total = 0;
 let found = 0;
-let foundedQueries = [];
+let foundedQueries = {};
 for (let i = 0; i <  testData.length; i++) {
     for (let j = 0; j < testData[i].length; j++) {
-        const query = testData[i].substring(0, j+1);
+        let query = testData[i].substring(0, j+1);
         total += 1;
         if (searchTermSet.has(query)) {
             found += 1;
-            foundedQueries.push(query);
+            foundedQueries[testData[i]] = query;
+        } else if (!(testData[i] in foundedQueries)) {
+            foundedQueries[testData[i]] = 'N/A';
         }
     }
 }
@@ -67,5 +69,7 @@ console.log('number of queries with suggestions', found);
 console.log('percent of queries with suggestions', found / total);
 
 const out = fs.createWriteStream('queriesWithSuggestionsPrefix.txt');
-foundedQueries.forEach(function(v) { out.write(v + '\n'); });
+for (let key in foundedQueries) {
+    out.write(`${key} ---> ${foundedQueries[key]}\n`);
+}
 out.end();

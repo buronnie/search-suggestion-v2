@@ -61,30 +61,44 @@ function buildAllSearchTerms(terms) {
     return res;
 }
 
-//===========================debug===================================
-// console.log(buildSearchTermsOfATerm('charles county parks and recreation'));
-
 //===========================main script=============================
 const dataString = fs.readFileSync('./dataset.txt', 'utf8');
 const terms = dataString.split('\n');
 
-const trainData = terms.slice(0, 39000);
-const testData = terms.slice(39000, 39010);
+const trainData = terms.slice(1000, 40000);
+const testData = terms.slice(0, 1000);
 
 const searchTermSet = buildAllSearchTerms(trainData);
-console.log(searchTermSet);
+
 let total = 0;
 let found = 0;
 let foundedQueries = {};
 for (let i = 0; i <  testData.length; i++) {
     for (let j = 0; j < testData[i].length; j++) {
-        const query = testData[i].substring(0, j+1);
-        const sortedQuery = query.trim().split(' ').sort().join(' ');
+        let query = testData[i].substring(0, j+1);
+        let sortedQuery = query.trim().split(' ').sort().join(' ');
         total += 1;
         if (searchTermSet.has(sortedQuery)) {
             found += 1;
             foundedQueries[testData[i]] = query;
-        } else if (!(testData[i] in foundedQueries)) {
+            continue;
+        }
+
+        while (true) {
+            const whiteSpacePos = query.trim().indexOf(' ');
+            if (whiteSpacePos === -1) {
+                break;
+            }
+            query = query.substring(whiteSpacePos + 1);
+            sortedQuery = query.trim().split(' ').sort().join(' ');
+            if (searchTermSet.has(sortedQuery)) {
+                found += 1;
+                foundedQueries[testData[i]] = query;
+                break;
+            }
+        }
+
+        if (!(testData[i] in foundedQueries)) {
             foundedQueries[testData[i]] = 'N/A';
         }
     }
@@ -95,7 +109,7 @@ console.log('total queries', total);
 console.log('number of queries with suggestions', found);
 console.log('percent of queries with suggestions', found / total);
 
-const out = fs.createWriteStream('queriesWithSuggestionsV2.txt');
+const out = fs.createWriteStream('queriesWithSuggestionsV2WithPartialSuggestions.txt');
 for (let key in foundedQueries) {
     out.write(`${key} ---> ${foundedQueries[key]}\n`);
 }

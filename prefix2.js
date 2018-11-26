@@ -11,39 +11,16 @@ stopWords.forEach((stopWord) => {
 
 const enableStopWordFilter = true;
 
-// example words: ['iphone', 'fix']
-function buildSearchTermsOfWords(words) {
-    words.sort();
-    const res = [];
-    const map = {};
-    for (let i = 0; i < words.length; i++) {
-        for (let j = 0; j < words[i].length; j++) {
-            const newWords = [...words];
-            newWords[i] = words[i].substring(0, j+1);
-            newWords.sort();
-            const newString = newWords.join(' ');
-            if (!(newString in map)) {
-                map[newString] = true;
-                res.push(newWords.join(' '));
-            }
-        }
-    }
-    return res;
-}
-
 // example term: 'iphone fix screen'
 function buildSearchTermsOfATerm(term) {
-    const words = term.split(' ');
-    const len = words.length;
-    let res = [];
-    for (let i = 1; i <= len; i++) {
-        for (let j = 0; j + i <= len; j++) {
-            let subwords = words.slice(j, j+i);
-            if (enableStopWordFilter) {
-                subwords = subwords.filter(word => !stopWordsSet.has(word));
-            }
-            res = [...res, ...buildSearchTermsOfWords(subwords)];
-        }
+    let words = term.split(' ');
+    if (enableStopWordFilter) {
+        words = words.filter(word => !stopWordsSet.has(word));
+    }
+    const newTerm = words.join(' ');
+    const res = [];
+    for (let i = 0; i < newTerm.length; i++) {
+        res.push(newTerm.substring(0, i+1));
     }
     return res;
 }
@@ -61,30 +38,41 @@ function buildAllSearchTerms(terms) {
     return res;
 }
 
-//===========================debug===================================
-// console.log(buildSearchTermsOfATerm('charles county parks and recreation'));
-
 //===========================main script=============================
 const dataString = fs.readFileSync('./dataset.txt', 'utf8');
 const terms = dataString.split('\n');
 
-const trainData = terms.slice(0, 39000);
-const testData = terms.slice(39000, 39010);
+const trainData = terms.slice(1000, 40000);
+const testData = terms.slice(0, 1000);
 
 const searchTermSet = buildAllSearchTerms(trainData);
-console.log(searchTermSet);
+
 let total = 0;
 let found = 0;
 let foundedQueries = {};
 for (let i = 0; i <  testData.length; i++) {
     for (let j = 0; j < testData[i].length; j++) {
-        const query = testData[i].substring(0, j+1);
-        const sortedQuery = query.trim().split(' ').sort().join(' ');
+        let query = testData[i].substring(0, j+1);
         total += 1;
-        if (searchTermSet.has(sortedQuery)) {
+        if (searchTermSet.has(query)) {
             found += 1;
             foundedQueries[testData[i]] = query;
-        } else if (!(testData[i] in foundedQueries)) {
+            continue;
+        }
+
+        while (true) {
+            const whiteSpacePos = query.trim().indexOf(' ');
+            if (whiteSpacePos === -1) {
+                break;
+            }
+            query = query.substring(whiteSpacePos + 1);
+            if (searchTermSet.has(query)) {
+                found += 1;
+                foundedQueries[testData[i]] = query;
+                break;
+            }
+        }
+        if (!(testData[i] in foundedQueries)) {
             foundedQueries[testData[i]] = 'N/A';
         }
     }
@@ -95,7 +83,7 @@ console.log('total queries', total);
 console.log('number of queries with suggestions', found);
 console.log('percent of queries with suggestions', found / total);
 
-const out = fs.createWriteStream('queriesWithSuggestionsV2.txt');
+const out = fs.createWriteStream('queriesWithSuggestionsPrefixWithPartialSuggestions.txt');
 for (let key in foundedQueries) {
     out.write(`${key} ---> ${foundedQueries[key]}\n`);
 }
